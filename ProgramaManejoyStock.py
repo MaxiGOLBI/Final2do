@@ -164,102 +164,135 @@ botonTickets.pack(side=LEFT, padx=5, pady=5)
 # Ventana de stock
 label_buscador =  Label(frame_stock, text="Busca un Articulo:", font=("Impact", 13), fg="spring green", bg="gray0")
 label_buscador.pack(anchor=W, padx=20, pady=(21, 0))
-entry_buscador = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
+entry_buscador = Entry(frame_stock, font=("Impact", 13), width=23, fg="gray0", bg="snow")
 entry_buscador.pack(anchor=W, padx=20, pady=(21, 0))
 
-#id
+# ID label and entry (which will show the next available code)
 label_id = Label(frame_stock, text="ID:", font=("Impact", 13), fg="spring green", bg="gray0")
-label_id.pack(anchor=W, padx=20, pady=(21, 0))
-entry_id = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
-entry_id.pack(anchor=W, padx=20, pady=(21, 0))
+label_id.pack(anchor="w", padx=20, pady=(21, 0))
+entry_id = Entry(frame_stock, font=("Impact", 13), width=23, fg="gray0", bg="snow", state="readonly")
+entry_id.pack(anchor="w", padx=20, pady=(21, 0))
+
+def obtener_id_nuevo():
+    try:
+        # Conectar a la base de datos
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="bdfinal2"
+        )
+        cursor = conexion.cursor()
+
+        # Obtener el código más alto actual en la tabla "stock"
+        cursor.execute("SELECT MAX(id) FROM stock")
+        max_id = cursor.fetchone()[0]
+
+        # Generar el nuevo código (uno más que el máximo actual, o 1 si está vacío)
+        nuevo_id = int(max_id) + 1 if max_id else 1
+
+        # Asignar el nuevo código al Entry de ID
+        entry_id.config(state="normal")  # Habilitar el Entry temporalmente
+        entry_id.delete(0, END)  # Limpiar cualquier valor previo
+        entry_id.insert(0, str(nuevo_id))  # Insertar el nuevo código
+        entry_id.config(state="readonly")  # Volver a poner el Entry en modo solo lectura
+
+    except Exception as e:
+        # Mostrar mensaje de error en caso de falla
+        messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
+    finally:
+        # Cerrar la conexión a la base de datos
+        if conexion.is_connected():
+            cursor.close()
+            conexion.close()
+
+# Llamar a la función obtener_codigo_nuevo al iniciar la ventana o cada vez que se desee un nuevo código
+obtener_id_nuevo()
 
 #cantidad
 label_cantidad = Label(frame_stock, text="Cantidad:", font=("Impact", 13), fg="spring green", bg="gray0")
 label_cantidad.pack(anchor=W, padx=20, pady=(21, 0))
-entry_cantidad = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
+entry_cantidad = Entry(frame_stock, font=("Impact", 13), width=23, fg="gray0", bg="snow")
 entry_cantidad.pack(anchor=W, padx=20, pady=(21, 0))
 
 #precio_costo
 label_precio_costo = Label(frame_stock, text="Costo:", font=("Impact", 13), fg="spring green", bg="gray0")
 label_precio_costo.pack(anchor=W, padx=20, pady=(21, 0))
-entry_precio_costo = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
+entry_precio_costo = Entry(frame_stock, font=("Impact", 13), width=23, fg="gray0", bg="snow")
 entry_precio_costo.pack(anchor=W, padx=20, pady=(21, 0))
 
 #precio_final
 label_precio_final = Label(frame_stock, text="Final:", font=("Impact", 13), fg="spring green", bg="gray0")
 label_precio_final.pack(anchor=W, padx=20, pady=(21, 0))
-entry_precio_final = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
+entry_precio_final = Entry(frame_stock, font=("Impact", 13), width=23, fg="gray0", bg="snow")
 entry_precio_final.pack(anchor=W, padx=20, pady=(21, 0))
 
 #detalle
 label_detalle = Label(frame_stock, text="Detalle:", font=("Impact", 13), fg="spring green", bg="gray0")
 label_detalle.pack(anchor=W, padx=20, pady=(21, 0))
-entry_detalle = Entry(frame_stock, font=("Impact", 13), width=33, fg="snow", bg="gray0")
+entry_detalle = Entry(frame_stock, font=("Impact", 13), width=33, fg="gray0", bg="snow")
 entry_detalle.pack(anchor=W, padx=20, pady=(21, 0))
 
 #####botones y funciones#####
 def buscarProducto():
     if entry_buscador.get() == "":
         messagebox.showwarning("Mensaje por parte de FE!n", "Ingrese algo para buscar")
-    else:
-        conexion = None
-        cursor = None
-        try:
-            # Conexión a la base de datos MySQL
-            conexion = mysql.connector.connect(
-                host="localhost",
-                user="root",
-                password="",
-                database="bdfinal2"  
-            )
-            if conexion.is_connected():
-                cursor = conexion.cursor()
+        return
 
-                
-                cursor.execute("SHOW TABLES LIKE 'stock'")
-                if cursor.fetchone() is None:
-                    messagebox.showerror("Error", "La tabla 'stock' no existe en la base de datos.")
-                    return
+    conexion = None
+    cursor = None
+    try:
+        # Conexión a la base de datos MySQL
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="bdfinal2"  
+        )
+        if conexion.is_connected():
+            cursor = conexion.cursor()
 
-                
-                buscar = (entry_buscador.get(),)  # Solo utiliza el valor ingresado para 'detalle'
-                cursor.execute("SELECT * FROM stock WHERE detalle=%s", buscar)
-                datos = cursor.fetchall()
+            cursor.execute("SHOW TABLES LIKE 'stock'")
+            if cursor.fetchone() is None:
+                messagebox.showerror("Error", "La tabla 'stock' no existe en la base de datos.")
+                return
 
+            buscar = (entry_buscador.get(),)  # Solo utiliza el valor ingresado para 'detalle'
+            cursor.execute("SELECT * FROM stock WHERE detalle=%s", buscar)
+            datos = cursor.fetchall()
 
+            # Limpiar las entradas antes de mostrar los resultados
+            entry_id.config(state="normal")
+            entry_id.delete(0, END)
+            entry_cantidad.delete(0, END)
+            entry_precio_costo.delete(0, END)
+            entry_precio_final.delete(0, END)
+            entry_detalle.delete(0, END)
 
-                # Limpiar las entradas antes de mostrar los resultados
-                entry_id.config(state="normal")
-                entry_id.delete(0, END)
-                entry_cantidad.config(state="normal")
-                entry_cantidad.delete(0, 100)
-                entry_precio_costo.delete(0, END)
-                entry_precio_final.delete(0, END)
-                entry_detalle.delete(0, END)
+            # Mostrar los datos encontrados en los campos correspondientes
+            if datos:
+                for dato in datos:
+                    entry_id.delete(0, END)  # Limpiar el campo ID antes de insertar
+                    entry_id.insert(0, dato[0])  # Asignar el ID encontrado
+                    entry_cantidad.insert(0, dato[1])
+                    entry_precio_costo.insert(0, dato[2])
+                    entry_precio_final.insert(0, dato[3])
+                    entry_detalle.insert(0, dato[4])
+            else:
+                messagebox.showwarning("Mensaje por parte de FE!n", "Todavía no hay artículos :(")
 
-                # Mostrar los datos encontrados en los campos correspondientes
-                if datos:
-                    for dato in datos:
-                        entry_id.insert(0, dato[0])
-                        entry_cantidad.insert(0, dato[1])
-                        entry_precio_costo.insert(0, dato[2])
-                        entry_precio_final.insert(0, dato[3])
-                        entry_detalle.insert(0, dato[4])
-                else:
-                    messagebox.showwarning("Mensaje por parte de FE!n", "Todavía no hay artículos :(")
-
-        except mysql.connector.Error as err:
-            # Muestra el error específico de MySQL
-            messagebox.showerror("Error de MySQL", f"Se produjo un error: {err}")
-        except Exception as e:
-            # Muestra cualquier otro error de Python
-            messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
-        finally:
-            # Cerrar cursor y conexión si están abiertos
-            if cursor:
-                cursor.close()
-            if conexion and conexion.is_connected():
-                conexion.close()
+    except mysql.connector.Error as err:
+        # Muestra el error específico de MySQL
+        messagebox.showerror("Error de MySQL", f"Se produjo un error: {err}")
+    except Exception as e:
+        # Muestra cualquier otro error de Python
+        messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
+    finally:
+        # Cerrar cursor y conexión si están abiertos
+        if cursor:
+            cursor.close()
+        if conexion and conexion.is_connected():
+            conexion.close()
 
 boton_buscar = Button(frame_stock, text="Buscar un Producto por Detalle", command=buscarProducto, bg="spring green", fg="black")
 boton_buscar.pack(anchor=W, padx=20, pady=(21, 0))
@@ -272,7 +305,7 @@ def validar_campos_vacios():
 # Inicialización de `articulos` como una lista vacía
 articulos = []
 
-# Función `ver_stock` corregida
+# Función `ver_stock`
 def ver_stock():
     ventana_stock = Toplevel()
     ventana_stock.title("Stock disponible")
@@ -321,24 +354,18 @@ boton_ver_stock.pack(side=LEFT, padx=20, pady=(21, 0))
 
 # Función `agregar_articulo`
 def agregar_articulo():
-    id_artagregar = entry_id.get()
+    # Obtener valores de los campos de entrada
     cantidad = entry_cantidad.get()
     precio_costo = entry_precio_costo.get()
     precio_final = entry_precio_final.get()
     detalle = entry_detalle.get()
 
-    if not id_artagregar or not cantidad or not precio_costo or not precio_final or not detalle:
+    # Validar que todos los campos están llenos (excepto el ID, que se autogenera)
+    if not cantidad or not precio_costo or not precio_final or not detalle:
         messagebox.showerror("Error", "Todos los campos son obligatorios")
         return
 
-    articulo = {
-        'id': id_artagregar,
-        'cantidad': cantidad,
-        'costo': precio_costo,
-        'final': precio_final,
-        'detalle': detalle
-    }
-
+    # Conectar a la base de datos e insertar el artículo
     try:
         conexion = mysql.connector.connect(
             host="localhost",
@@ -347,25 +374,33 @@ def agregar_articulo():
             database="bdfinal2"
         )
         cursor = conexion.cursor()
-        cursor.execute("""
-            INSERT INTO stock (id, cantidad, precio_costo, precio_final, detalle)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (articulo['id'], articulo['cantidad'], articulo['costo'], articulo['final'], articulo['detalle']))
+
+        # Insertar el nuevo artículo en la tabla 'productos'
+        cursor.execute(""" 
+            INSERT INTO stock (cantidad, precio_costo, precio_final, detalle)
+            VALUES (%s, %s, %s, %s)
+        """, (cantidad, precio_costo, precio_final, detalle))
         conexion.commit()
+
         messagebox.showinfo("Información", "Artículo agregado correctamente")
-        
-        # Limpiar campos después de agregar
-        entry_id.delete(0, END)
-        entry_cantidad.delete(0, 100)
+
+        # Limpiar los campos después de agregar
+        entry_cantidad.delete(0, END)
         entry_precio_costo.delete(0, END)
         entry_precio_final.delete(0, END)
         entry_detalle.delete(0, END)
 
+        # Llamar a obtener_codigo_nuevo() si es necesario (esto depende de tu implementación)
+        obtener_id_nuevo()  # Puedes ajustar esta llamada si necesitas mostrar el nuevo ID
+
     except mysql.connector.Error as err:
         messagebox.showerror("Error", f"Error al agregar el artículo: {err}")
     finally:
-        cursor.close()
-        conexion.close()
+        # Cerrar cursor y conexión
+        if cursor:
+            cursor.close()
+        if conexion and conexion.is_connected():
+            conexion.close()
 
 boton_agregar = Button(frame_stock, text="Agregar", command=agregar_articulo, bg="spring green", fg="black")
 boton_agregar.pack(side=LEFT, padx=20, pady=(21, 0))
@@ -416,18 +451,51 @@ def actualizar_articulo():
             cursor.close()
         if conexion and conexion.is_connected():
             conexion.close()
-            
+
 boton_actualizar = Button(frame_stock, text="Actualizar", command=actualizar_articulo, bg="spring green", fg="black")
 boton_actualizar.pack(side=LEFT, padx=20, pady=(21, 0))
 
 def eliminar_articulo():
-    id = entry_id.get()
-    for item in articulos:
-        if item['id'] == id:
-            articulos.remove(item)
-            messagebox.showinfo("Informacion", "Articulo eliminado correctamente")
-            return
-    messagebox.showerror("Error", "Articulo no encontrado")
+    try:
+        # Conectar a la base de datos MySQL
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="bdfinal2"
+        )
+        cursor = conexion.cursor()
+
+        # Verificar si el artículo con el ID especificado existe en la base de datos
+        cursor.execute("SELECT * FROM stock WHERE id = %s", (entry_id.get(),))
+        articulo_existente = cursor.fetchone()
+
+        if articulo_existente:
+            # Si el artículo existe, eliminarlo de la base de datos
+            cursor.execute("DELETE FROM stock WHERE id = %s", (entry_id.get(),))
+            conexion.commit()  # Confirmar la eliminación
+            messagebox.showinfo("Información", "Artículo eliminado correctamente")
+        else:
+            # Si el artículo no existe, mostrar un mensaje de error
+            messagebox.showerror("Error", "Artículo no encontrado")
+
+    except mysql.connector.Error as err:
+        # Muestra el error específico de MySQL
+        messagebox.showerror("Error de MySQL", f"Se produjo un error: {err}")
+    finally:
+        # Cerrar el cursor y la conexión a la base de datos
+        if cursor:
+            cursor.close()
+        if conexion and conexion.is_connected():
+            conexion.close()
+
+    # Limpiar los campos de entrada
+    entry_id.delete(0, END)
+    entry_cantidad.delete(0, END)
+    entry_precio_costo.delete(0, END)
+    entry_precio_final.delete(0, END)
+    entry_detalle.delete(0, END)
+
 boton_eliminar = Button(frame_stock, text="Eliminar", command=eliminar_articulo, bg="spring green", fg="black")
 boton_eliminar.pack(side=LEFT, padx=20, pady=(21, 0))
 
@@ -438,6 +506,10 @@ def limpiar_campos():
     entry_precio_costo.delete(0, END)
     entry_precio_final.delete(0, END)
     entry_detalle.delete(0, END)
+
+    # Obtener el nuevo ID máximo
+    obtener_id_nuevo()  # Llama a la función que actualiza el ID
+    
 boton_limpiar = Button(frame_stock, text="Limpiar", command=limpiar_campos, bg="spring green", fg="black")
 boton_limpiar.pack(side=LEFT, padx=20, pady=(21, 0))
 
