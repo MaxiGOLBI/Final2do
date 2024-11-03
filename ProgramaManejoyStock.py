@@ -155,7 +155,7 @@ botonProveedores.pack(side=LEFT, padx=5, pady=5)
 botonClientes = Button(frame_botones_interno, text="Clientes", command=verClientes, bg="spring green", fg="black")
 botonClientes.pack(side=LEFT, padx=5, pady=5)
 
-botonCarrito = Button(frame_botones_interno, text="Ventas", command=verVentas, bg="spring green", fg="black")
+botonCarrito = Button(frame_botones_interno, text="Carrito  ", command=verVentas, bg="spring green", fg="black")
 botonCarrito.pack(side=LEFT, padx=5, pady=5)
 
 botonTickets = Button(frame_botones_interno, text="Tickets", command=vertickets, bg="spring green", fg="black")
@@ -175,7 +175,6 @@ entry_id.pack(anchor="w", padx=20, pady=(21, 0))
 
 def obtener_id_nuevo():
     try:
-        # Conectar a la base de datos
         conexion = mysql.connector.connect(
             host="localhost",
             user="root",
@@ -184,29 +183,28 @@ def obtener_id_nuevo():
         )
         cursor = conexion.cursor()
 
-        # Obtener el código más alto actual en la tabla "stock"
-        cursor.execute("SELECT MAX(id) FROM stock")
-        max_id = cursor.fetchone()[0]
+        # Obtener el código más alto actual
+        cursor.execute("SELECT MAX(id) FROM stock")  # Cambia 'productos' a 'stock' si es necesario
+        max_codigo = cursor.fetchone()[0]
 
-        # Generar el nuevo código (uno más que el máximo actual, o 1 si está vacío)
-        nuevo_id = int(max_id) + 1 if max_id else 1
+        # Asignar el nuevo código (siguiente disponible)
+        nuevo_codigo = int(max_codigo) + 1 if max_codigo is not None else 1
 
-        # Asignar el nuevo código al Entry de ID
-        entry_id.config(state="normal")  # Habilitar el Entry temporalmente
-        entry_id.delete(0, END)  # Limpiar cualquier valor previo
-        entry_id.insert(0, str(nuevo_id))  # Insertar el nuevo código
-        entry_id.config(state="readonly")  # Volver a poner el Entry en modo solo lectura
+        # Asignar el nuevo código al Entry
+        entry_id.config(state="normal")
+        entry_id.delete(0, END)
+        entry_id.insert(0, str(nuevo_codigo))
+        entry_id.config(state="readonly")
 
-    except Exception as e:
-        # Mostrar mensaje de error en caso de falla
-        messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error de MySQL", f"Error al obtener el código: {err}")
     finally:
-        # Cerrar la conexión a la base de datos
-        if conexion.is_connected():
+        if cursor:
             cursor.close()
+        if conexion and conexion.is_connected():
             conexion.close()
 
-# Llamar a la función obtener_codigo_nuevo al iniciar la ventana o cada vez que se desee un nuevo código
+# Asegúrate de llamar a esta función en el inicio de tu aplicación
 obtener_id_nuevo()
 
 #cantidad
@@ -236,7 +234,7 @@ entry_detalle.pack(anchor=W, padx=20, pady=(21, 0))
 #####botones y funciones#####
 def buscarProducto():
     if entry_buscador.get() == "":
-        messagebox.showwarning("Mensaje por parte de FE!n", "Ingrese algo para buscar")
+        messagebox.showwarning("Mensaje por parte de FE!", "Ingrese algo para buscar")
         return
 
     conexion = None
@@ -354,18 +352,24 @@ boton_ver_stock.pack(side=LEFT, padx=20, pady=(21, 0))
 
 # Función `agregar_articulo`
 def agregar_articulo():
-    # Obtener valores de los campos de entrada
+    id_artagregar = entry_id.get()
     cantidad = entry_cantidad.get()
     precio_costo = entry_precio_costo.get()
     precio_final = entry_precio_final.get()
     detalle = entry_detalle.get()
 
-    # Validar que todos los campos están llenos (excepto el ID, que se autogenera)
-    if not cantidad or not precio_costo or not precio_final or not detalle:
+    if not id_artagregar or not cantidad or not precio_costo or not precio_final or not detalle:
         messagebox.showerror("Error", "Todos los campos son obligatorios")
         return
 
-    # Conectar a la base de datos e insertar el artículo
+    articulo = {
+        'id': id_artagregar,
+        'cantidad': cantidad,
+        'costo': precio_costo,
+        'final': precio_final,
+        'detalle': detalle
+    }
+
     try:
         conexion = mysql.connector.connect(
             host="localhost",
@@ -374,33 +378,28 @@ def agregar_articulo():
             database="bdfinal2"
         )
         cursor = conexion.cursor()
-
-        # Insertar el nuevo artículo en la tabla 'productos'
-        cursor.execute(""" 
-            INSERT INTO stock (cantidad, precio_costo, precio_final, detalle)
-            VALUES (%s, %s, %s, %s)
-        """, (cantidad, precio_costo, precio_final, detalle))
+        cursor.execute("""
+            INSERT INTO stock (id, cantidad, precio_costo, precio_final, detalle)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (articulo['id'], articulo['cantidad'], articulo['costo'], articulo['final'], articulo['detalle']))
         conexion.commit()
-
         messagebox.showinfo("Información", "Artículo agregado correctamente")
-
-        # Limpiar los campos después de agregar
-        entry_cantidad.delete(0, END)
+        
+        # Limpiar campos después de agregar
+        entry_id.delete(0, END)
+        entry_cantidad.delete(0, 100)
         entry_precio_costo.delete(0, END)
         entry_precio_final.delete(0, END)
         entry_detalle.delete(0, END)
 
-        # Llamar a obtener_codigo_nuevo() si es necesario (esto depende de tu implementación)
-        obtener_id_nuevo()  # Puedes ajustar esta llamada si necesitas mostrar el nuevo ID
+        obtener_id_nuevo()  # Obtener el nuevo ID
+
 
     except mysql.connector.Error as err:
         messagebox.showerror("Error", f"Error al agregar el artículo: {err}")
     finally:
-        # Cerrar cursor y conexión
-        if cursor:
-            cursor.close()
-        if conexion and conexion.is_connected():
-            conexion.close()
+        cursor.close()
+        conexion.close()
 
 boton_agregar = Button(frame_stock, text="Agregar", command=agregar_articulo, bg="spring green", fg="black")
 boton_agregar.pack(side=LEFT, padx=20, pady=(21, 0))
@@ -439,6 +438,7 @@ def actualizar_articulo():
             conexion.commit()
             messagebox.showinfo("Información", "Artículo actualizado correctamente")
             # Limpiar los campos después de agregar
+            entry_id.delete(0, END) 
             entry_cantidad.delete(0, END)
             entry_precio_costo.delete(0, END)
             entry_precio_final.delete(0, END)
@@ -548,11 +548,6 @@ def ver_stock():
 
     btn_cerrar = Button(ventana_stock, text="Cerrar", command=ventana_stock.destroy)
     btn_cerrar.pack(pady=10)
-
-# Corrección del botón para `ver_stock`
-boton_ver_stock = Button(frame_stock, text="Ver Stock", command=ver_stock, bg="spring green", fg="black")
-boton_ver_stock.pack(side=LEFT , padx=20, pady=(21, 0))
-
 
 # Ventana de ventas
 
