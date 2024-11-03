@@ -4,19 +4,63 @@ from tkinter import messagebox
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 import time
+import tkinter as tk
+from tkinter import messagebox
+from datetime import datetime
+import os
+from tkinter import ttk
+from tkinter import simpledialog
+from tkinter import messagebox, END
 
-# Conexión a la base de datos MySQL
-try:
-    conexion = mysql.connector.connect(
-        user='root', password='',  # Cambia estos valores según tu configuración
-        host='localhost',
-        database='bdfinal2',
-        port='3306'
+# Conectar a la base de datos
+conexion = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="bdfinal2"
+)
+# Crear un cursor para ejecutar consultas
+cursor = conexion.cursor()
+
+# Crear las tablas si no existen
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS stock (
+        ID TEXT PRIMARY KEY,
+        cantidad INTEGER,
+        precio_costo REAL,
+        precio_final REAL,
+        detalle TEXT
     )
-    print("Conexión exitosa")
-except mysql.connector.Error as err:
-    messagebox.showerror("Error de conexión", f"No se pudo conectar a la base de datos: {err}")
-    exit()  # Termina el programa si la conexión falla
+''')
+
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS proveedores (
+        ID TEXT PRIMARY KEY,
+        nombre TEXT,
+        costo REAL,
+        detalle TEXT,
+        fecha TEXT
+    )
+''')
+
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS clientes (
+        ID TEXT PRIMARY KEY,
+        nombre_y_apellido TEXT,
+        detalle TEXT,
+        fecha TEXT
+    )
+''')
+
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS ventas (
+        ID TEXT PRIMARY KEY,  
+        cantidad INTEGER,
+        detalle TEXT,
+        fecha TEXT,
+        total REAL
+    )
+''')
 
 # Ventana principal
 ventana = Tk()
@@ -31,7 +75,7 @@ except Exception as e:
 
 # Función para ocultar todos los frames
 def sacarFrames():
-    for frame in [frame_inicio, frame_stock, frame_ventas, frame_proveedores, frame_clientes]:
+    for frame in [frame_inicio, frame_stock, frame_ventas, frame_proveedores, frame_clientes, frame_carrito, frame_tickets]:
         frame.pack_forget()
 
 # Frames
@@ -40,6 +84,8 @@ frame_stock = Frame(ventana, bg="gray0")
 frame_ventas = Frame(ventana, bg="gray0")
 frame_proveedores = Frame(ventana, bg="gray0")
 frame_clientes = Frame(ventana, bg="gray0")
+frame_carrito = Frame(ventana, bg="gray0")
+frame_tickets = Frame(ventana, bg="gray0")
 
 # Frame de botones
 frame_botones = Frame(ventana, bg="gray2")
@@ -51,7 +97,7 @@ frame_botones_interno.pack(side=TOP)
 
 # Frame inicio - Contenido de la página de inicio
 try:
-    logo = PhotoImage(file="celupng.png")  # Cambia esto por la ruta correcta de tu logo
+    logo = PhotoImage(file="celupng.png") 
     label_image_logo = Label(frame_inicio, image=logo, relief=FLAT, bd=0)
     label_image_logo.pack(pady=50)
 except Exception as e:
@@ -69,7 +115,6 @@ def verStock():
 def verVentas():
     sacarFrames()
     frame_ventas.pack(fill=BOTH, expand=True)
-    cargar_articulos()
 
 def verProveedores():
     sacarFrames()
@@ -79,20 +124,18 @@ def verClientes():
     sacarFrames()
     frame_clientes.pack(fill=BOTH, expand=True)
 
+def verCarrito():
+    sacarFrames()
+    frame_carrito.pack(fill=BOTH, expand=True)
+
+def vertickets():
+    sacarFrames()
+    frame_tickets.pack(fill=BOTH, expand=True)
+
 # Función para cerrar la aplicación
 def cerrar():
     ventana.destroy()
 
-# Función para regresar al frame de inicio
-def regresar():
-    sacarFrames()
-    frame_inicio.pack(fill=BOTH, expand=True)
-
-# Boton de regresar
-botonRegresar = Button(frame_botones_interno, text="Regresar", command=regresar, bg="spring green", fg="black")
-botonRegresar.pack(side=LEFT, padx=5, pady=5)
-
-# Boton de cerrar
 botonCerrar = Button(frame_botones_interno, text="Cerrar", command=cerrar, bg="spring green", fg="black")
 botonCerrar.pack(side=RIGHT, padx=5, pady=5)
 
@@ -112,160 +155,297 @@ botonProveedores.pack(side=LEFT, padx=5, pady=5)
 botonClientes = Button(frame_botones_interno, text="Clientes", command=verClientes, bg="spring green", fg="black")
 botonClientes.pack(side=LEFT, padx=5, pady=5)
 
-################################CARRITO DE COMPRAS y TICKET################################
-# Carrito de compras como una lista de diccionarios
-carrito = []
+botonCarrito = Button(frame_botones_interno, text="Ventas", command=verVentas, bg="spring green", fg="black")
+botonCarrito.pack(side=LEFT, padx=5, pady=5)
 
-# Función para agregar un artículo al carrito
-def agregar_al_carrito():
-    seleccion = lista_articulos.curselection()
-    cantidad = entry_cantidad.get()
+botonTickets = Button(frame_botones_interno, text="Tickets", command=vertickets, bg="spring green", fg="black")
+botonTickets.pack(side=LEFT, padx=5, pady=5)
 
-    if seleccion and cantidad.isdigit():
-        id_articulo = articulos[seleccion[0]][0]  # ID del artículo
-        cantidad = int(cantidad)
-        # Buscar el artículo en la base de datos
-        cursor = conexion.cursor()
-        cursor.execute("SELECT ID, detalle, precio_final FROM stock WHERE ID = %s", (id_articulo,))
-        articulo = cursor.fetchone()
-        cursor.close()
+# Ventana de stock
+label_buscador =  Label(frame_stock, text="Busca un Articulo:", font=("Impact", 13), fg="spring green", bg="gray0")
+label_buscador.pack(anchor=W, padx=20, pady=(21, 0))
+entry_buscador = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
+entry_buscador.pack(anchor=W, padx=20, pady=(21, 0))
 
-        if articulo:
-            id_articulo, detalle, precio = articulo
-            carrito.append({
-                'ID': id_articulo,
-                'detalle': detalle,
-                'cantidad': cantidad,
-                'precio': precio,
-                'subtotal': cantidad * precio
-            })
-            entry_cantidad.delete(0, END)  # Limpiar la entrada de cantidad
-            actualizar_carrito()
-        else:
-            messagebox.showwarning("Advertencia", "Artículo no encontrado")
+# Inicialización de `articulos` como una lista vacía
+articulos = []
+
+#id
+label_id = Label(frame_stock, text="ID:", font=("Impact", 13), fg="spring green", bg="gray0")
+label_id.pack(anchor=W, padx=20, pady=(21, 0))
+entry_id = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
+entry_id.pack(anchor=W, padx=20, pady=(21, 0))
+
+#cantidad
+label_cantidad = Label(frame_stock, text="Cantidad:", font=("Impact", 13), fg="spring green", bg="gray0")
+label_cantidad.pack(anchor=W, padx=20, pady=(21, 0))
+entry_cantidad = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
+entry_cantidad.pack(anchor=W, padx=20, pady=(21, 0))
+
+#precio_costo
+label_precio_costo = Label(frame_stock, text="Costo:", font=("Impact", 13), fg="spring green", bg="gray0")
+label_precio_costo.pack(anchor=W, padx=20, pady=(21, 0))
+entry_precio_costo = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
+entry_precio_costo.pack(anchor=W, padx=20, pady=(21, 0))
+
+#precio_final
+label_precio_final = Label(frame_stock, text="Final:", font=("Impact", 13), fg="spring green", bg="gray0")
+label_precio_final.pack(anchor=W, padx=20, pady=(21, 0))
+entry_precio_final = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
+entry_precio_final.pack(anchor=W, padx=20, pady=(21, 0))
+
+#detalle
+label_detalle = Label(frame_stock, text="Detalle:", font=("Impact", 13), fg="spring green", bg="gray0")
+label_detalle.pack(anchor=W, padx=20, pady=(21, 0))
+entry_detalle = Entry(frame_stock, font=("Impact", 13), width=33, fg="snow", bg="gray0")
+entry_detalle.pack(anchor=W, padx=20, pady=(21, 0))
+
+#####botones y funciones#####
+def buscarProducto():
+    if entry_buscador.get() == "":
+        messagebox.showwarning("Mensaje por parte de FE!n", "Ingrese algo para buscar")
     else:
-        messagebox.showwarning("Advertencia", "Selecciona un artículo y especifica una cantidad válida.")
+        conexion = None
+        cursor = None
+        try:
+            # Conexión a la base de datos MySQL
+            conexion = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="bdfinal2"  
+            )
+            if conexion.is_connected():
+                cursor = conexion.cursor()
 
-# Función para actualizar el área del carrito en la interfaz
-def actualizar_carrito():
-    lista_carrito.delete(0, END)
-    for item in carrito:
-        lista_carrito.insert(END, f"{item['detalle']} - Cantidad: {item['cantidad']} - Subtotal: ${item['subtotal']:.2f}")
-    calcular_total()
+                
+                cursor.execute("SHOW TABLES LIKE 'stock'")
+                if cursor.fetchone() is None:
+                    messagebox.showerror("Error", "La tabla 'stock' no existe en la base de datos.")
+                    return
 
-# Función para calcular el total de la compra
-def calcular_total():
-    total = sum(item['subtotal'] for item in carrito)
-    etiqueta_total.config(text=f"Total: ${total:.2f}")
+                
+                buscar = (entry_buscador.get(),)  # Solo utiliza el valor ingresado para 'detalle'
+                cursor.execute("SELECT * FROM stock WHERE detalle=%s", buscar)
+                datos = cursor.fetchall()
 
-# Funcion para eliminar un elemento del carrito
-def eliminar_del_carrito(indice):
-    del carrito[indice]
-    actualizar_carrito()
 
-# Función para vaciar el carrito
-def vaciar_carrito():
-    carrito.clear()
-    actualizar_carrito()
 
-# Función para obtener los artículos de la base de datos MySQL
-def obtener_articulos():
+                # Limpiar las entradas antes de mostrar los resultados
+                entry_id.config(state="normal")
+                entry_id.delete(0, END)
+                entry_cantidad.config(state="normal")
+                entry_cantidad.delete(0, 100)
+                entry_precio_costo.delete(0, END)
+                entry_precio_final.delete(0, END)
+                entry_detalle.delete(0, END)
+
+                # Mostrar los datos encontrados en los campos correspondientes
+                if datos:
+                    for dato in datos:
+                        entry_id.insert(0, dato[0])
+                        entry_cantidad.insert(0, dato[1])
+                        entry_precio_costo.insert(0, dato[2])
+                        entry_precio_final.insert(0, dato[3])
+                        entry_detalle.insert(0, dato[4])
+                else:
+                    messagebox.showwarning("Mensaje por parte de FE!n", "Todavía no hay artículos :(")
+
+        except mysql.connector.Error as err:
+            # Muestra el error específico de MySQL
+            messagebox.showerror("Error de MySQL", f"Se produjo un error: {err}")
+        except Exception as e:
+            # Muestra cualquier otro error de Python
+            messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
+        finally:
+            # Cerrar cursor y conexión si están abiertos
+            if cursor:
+                cursor.close()
+            if conexion and conexion.is_connected():
+                conexion.close()
+
+boton_buscar = Button(frame_stock, text="Buscar un Producto por Detalle", command=buscarProducto, bg="spring green", fg="black")
+boton_buscar.pack(anchor=W, padx=20, pady=(21, 0))
+
+#validar todos los campos#
+def validar_campos_vacios():
+    if not entry_id.get() or not entry_cantidad.get() or not entry_precio_costo.get() or not entry_precio_final.get() or not entry_detalle.get():
+        messagebox.showerror("Error", "Todos los campos son obligatorios")
+
+# Inicialización de `articulos` como una lista vacía
+articulos = []
+
+# Función `ver_stock` corregida
+def ver_stock():
+    ventana_stock = Toplevel()
+    ventana_stock.title("Stock disponible")
+    listbox = Listbox(ventana_stock, width=600, height=400)
+    listbox.pack(pady=10)
     try:
+        # Conectar a la base de datos MySQL
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="bdfinal2"
+        )
         cursor = conexion.cursor()
-        cursor.execute("SELECT ID, cantidad, precio_final, detalle FROM stock")
+
+        # Verificar que la tabla 'stock' existe
+        cursor.execute("SHOW TABLES LIKE 'stock'")
+        if cursor.fetchone() is None:
+            messagebox.showerror("Error", "La tabla 'stock' no existe en la base de datos.")
+            return
+
+        # Realizar la consulta para obtener todos los artículos
+        cursor.execute("SELECT * FROM stock")
         articulos = cursor.fetchall()
-        cursor.close()
-        return articulos
+
+        # Insertar los artículos en el Listbox
+        if articulos:
+            for articulo in articulos:
+                listbox.insert(tk.END, f"ID: {articulo[0]}, Cantidad: {articulo[1]}, Costo: {articulo[2]}, Final: {articulo[3]}, Detalle: {articulo[4]}")
+        else:
+            listbox.insert(tk.END, "No hay artículos en stock.")
+
     except mysql.connector.Error as err:
-        messagebox.showerror("Error de base de datos", f"No se pudieron obtener los artículos: {err}")
-        return []
+        messagebox.showerror("Error de MySQL", f"Se produjo un error: {err}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
+    finally:
+        # Cerrar el cursor y la conexión a la base de datos
+        if cursor:
+            cursor.close()
+        if conexion and conexion.is_connected():
+            conexion.close()
 
-# Función para cargar los artículos en el Listbox
-def cargar_articulos():
-    global articulos
-    articulos = obtener_articulos()
-    lista_articulos.delete(0, END)
-    for articulo in articulos:
-        lista_articulos.insert(END, f"{articulo[3]} - Precio: ${articulo[2]:.2f}")  # Detalle y precio
+boton_ver_stock = Button(frame_stock, text="Ver Stock", command=ver_stock, bg="spring green", fg="black")
+boton_ver_stock.pack(side=LEFT, padx=20, pady=(21, 0))
 
-# Crear interfaz para el carrito de compras en el frame de ventas
-Label(frame_ventas, text="Artículos disponibles:", bg="gray0", fg="white").pack(pady=10)
+# Función `agregar_articulo`
+def agregar_articulo():
+    id_artagregar = entry_id.get()
+    cantidad = entry_cantidad.get()
+    precio_costo = entry_precio_costo.get()
+    precio_final = entry_precio_final.get()
+    detalle = entry_detalle.get()
 
-lista_articulos = Listbox(frame_ventas, bg="white", width=50, height=10)
-lista_articulos.pack(pady=10)
+    if not id_artagregar or not cantidad or not precio_costo or not precio_final or not detalle:
+        messagebox.showerror("Error", "Todos los campos son obligatorios")
+        return
 
-Label(frame_ventas, text="Cantidad:", bg="gray0", fg="white").pack(pady=5)
-entry_cantidad = Entry(frame_ventas)
-entry_cantidad.pack(pady=5)
+    articulo = {
+        'id': id_artagregar,
+        'cantidad': cantidad,
+        'costo': precio_costo,
+        'final': precio_final,
+        'detalle': detalle
+    }
 
-botonAgregarCarrito = Button(frame_ventas, text="Agregar al Carrito", command=agregar_al_carrito, bg="lightblue", fg="black")
-botonAgregarCarrito.pack(pady=5)
+    try:
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="bdfinal2"
+        )
+        cursor = conexion.cursor()
+        cursor.execute("""
+            INSERT INTO stock (id, cantidad, precio_costo, precio_final, detalle)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (articulo['id'], articulo['cantidad'], articulo['costo'], articulo['final'], articulo['detalle']))
+        conexion.commit()
+        messagebox.showinfo("Información", "Artículo agregado correctamente")
+        
+        # Limpiar campos después de agregar
+        entry_id.delete(0, END)
+        entry_cantidad.delete(0, 100)
+        entry_precio_costo.delete(0, END)
+        entry_precio_final.delete(0, END)
+        entry_detalle.delete(0, END)
 
-Label(frame_ventas, text="Carrito:", bg="gray0", fg="white").pack(pady=10)
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error", f"Error al agregar el artículo: {err}")
+    finally:
+        cursor.close()
+        conexion.close()
 
-lista_carrito = Listbox(frame_ventas, bg="white", width=50, height=10)
-lista_carrito.pack(pady=10)
+boton_agregar = Button(frame_stock, text="Agregar", command=agregar_articulo, bg="spring green", fg="black")
+boton_agregar.pack(side=LEFT, padx=20, pady=(21, 0))
 
-etiqueta_total = Label(frame_ventas, text="Total: $0.00", bg="gray0", fg="white")
-etiqueta_total.pack(pady=10)
+def actualizar_articulo():
+    id = entry_id.get()
+    cantidad = entry_cantidad.get()
+    precio_costo = entry_precio_costo.get()
+    precio_final = entry_precio_final.get()
+    detalle = entry_detalle.get()
+    if not id or not cantidad or not precio_costo or not precio_final or not detalle:
+        messagebox.showerror("Error", "Todos los campos son obligatorios")
+        return
+    for item in articulos:
+        if item['id'] == id:
+            item['cantidad'] = cantidad
+            item['costo'] = precio_costo
+            item['final'] = precio_final
+            item['detalle'] = detalle
+            messagebox.showinfo("Informacion", "Articulo actualizado correctamente")
+            return
+    messagebox.showerror("Error", "Articulo no encontrado")
+boton_actualizar = Button(frame_stock, text="Actualizar", command=actualizar_articulo, bg="spring green", fg="black")
+boton_actualizar.pack(side=LEFT, padx=20, pady=(21, 0))
 
-botonVaciarCarrito = Button(frame_ventas, text="Vaciar Carrito", command=vaciar_carrito, bg="lightcoral", fg="black")
-botonVaciarCarrito.pack(pady=5)
+def eliminar_articulo():
+    id = entry_id.get()
+    for item in articulos:
+        if item['id'] == id:
+            articulos.remove(item)
+            messagebox.showinfo("Informacion", "Articulo eliminado correctamente")
+            return
+    messagebox.showerror("Error", "Articulo no encontrado")
+boton_eliminar = Button(frame_stock, text="Eliminar", command=eliminar_articulo, bg="spring green", fg="black")
+boton_eliminar.pack(side=LEFT, padx=20, pady=(21, 0))
 
-# Obtener fecha y hora actuales para el nombre del archivo y formato de fecha
-horaActual = time.strftime("%H%M%S")
-fechaActual = time.strftime("%d%m%Y")
-fechaHoy = time.strftime("%d/%m/%Y")
-nombreArchivo = f"ticket{fechaActual}{horaActual}.pdf"
+def limpiar_campos():
+    entry_buscador.delete(0, END)
+    entry_id.delete(0, END)
+    entry_cantidad.delete(0, 100)
+    entry_precio_costo.delete(0, END)
+    entry_precio_final.delete(0, END)
+    entry_detalle.delete(0, END)
+boton_limpiar = Button(frame_stock, text="Limpiar", command=limpiar_campos, bg="spring green", fg="black")
+boton_limpiar.pack(side=LEFT, padx=20, pady=(21, 0))
 
-# Crear el PDF (esta función debe ser llamada en el momento adecuado)
-def crear_ticket():
-    # Crear el PDF
-    nuevoPdf = canvas.Canvas(nombreArchivo, pagesize=A4)
+def ver_stock():
+    ventana_stock = Toplevel()
+    ventana_stock.title("Stock disponible")
+    listbox = Listbox(ventana_stock, width=600, height=400)
+    listbox.pack(pady=10)
 
-    # Líneas horizontales (X)
-    nuevoPdf.line(20, 820, 570, 820)  # Línea superior
-    nuevoPdf.line(20, 20, 570, 20)    # Línea inferior
-    nuevoPdf.line(20, 720, 570, 720)  # Línea de encabezado
+    # Llenado del Listbox con los datos
+    for item in articulos:
+        listbox.insert(END, f"ID: {item['id']}, Cantidad: {item['cantidad']}")
 
-    # Líneas verticales (Y)
-    nuevoPdf.line(20, 20, 20, 820)    # Borde izquierdo
-    nuevoPdf.line(570, 20, 570, 820)  # Borde derecho
-    nuevoPdf.line(480, 720, 480, 820) # Separador entre título y fecha
+    btn_cerrar = Button(ventana_stock, text="Cerrar", command=ventana_stock.destroy)
+    btn_cerrar.pack(pady=10)
 
-    # Texto de encabezado
-    nuevoPdf.setFont("Times-Roman", 20)
-    nuevoPdf.drawString(50, 780, "Ticket de Compra")
-    nuevoPdf.setFont("Times-Roman", 12)
-    nuevoPdf.drawString(490, 780, fechaHoy)  # Fecha actual en la esquina superior derecha
+# Corrección del botón para `ver_stock`
+boton_ver_stock = Button(frame_stock, text="Ver Stock", command=ver_stock, bg="spring green", fg="black")
+boton_ver_stock.pack(side=LEFT , padx=20, pady=(21, 0))
 
-    # Encabezados de la tabla de productos
-    nuevoPdf.drawString(50, 700, "Artículo")
-    nuevoPdf.drawString(300, 700, "Cantidad")
-    nuevoPdf.drawString(400, 700, "Precio")
-    nuevoPdf.drawString(500, 700, "Subtotal")
 
-    # Variables para controlar la posición vertical en la tabla y el total
-    y_position = 680
-    total = sum(item['subtotal'] for item in carrito)
+# Ventana de ventas
 
-    # Agregar artículos del carrito al ticket
-    for item in carrito:
-        nuevoPdf.drawString(50, y_position, f"{item['ID']} - {item['detalle']}")
-        nuevoPdf.drawString(300, y_position, str(item['cantidad']))
-        nuevoPdf.drawString(400, y_position, f"${item['precio']:.2f}")
-        nuevoPdf.drawString(500, y_position, f"${item['subtotal']:.2f}")
-        y_position -= 20  # Mover la posición hacia abajo para la siguiente fila
+# Ventana de proveedor
 
-    # Mostrar el total
-    nuevoPdf.drawString(400, y_position - 20, "Total:")
-    nuevoPdf.drawString(500, y_position - 20, f"${total:.2f}")
+# Ventana de clientes
 
-    # Guardar el PDF
-    nuevoPdf.save()
-    print(f"Ticket guardado como {nombreArchivo}")
 
 # Mostrar el frame de inicio al iniciar la aplicación
 verInicio()
 # Iniciar ventana
+
 ventana.mainloop()
+
+# Cerrar cursor y conexión
+cursor.close()
+conexion.close()
