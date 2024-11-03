@@ -438,6 +438,15 @@ def actualizar_articulo():
             """, (cantidad, precio_costo, precio_final, detalle, id_articulo))
             conexion.commit()
             messagebox.showinfo("Información", "Artículo actualizado correctamente")
+            # Limpiar los campos después de agregar
+            entry_cantidad.delete(0, END)
+            entry_precio_costo.delete(0, END)
+            entry_precio_final.delete(0, END)
+            entry_detalle.delete(0, END)
+
+         # Llamar a obtener_codigo_nuevo() si es necesario (esto depende de tu implementación)
+            obtener_id_nuevo()  # Puedes ajustar esta llamada si necesitas mostrar el nuevo ID
+
         else:
             # Si el artículo no existe, mostrar un mensaje de error
             messagebox.showerror("Error", "Artículo no encontrado")
@@ -470,11 +479,25 @@ def eliminar_articulo():
         cursor.execute("SELECT * FROM stock WHERE id = %s", (entry_id.get(),))
         articulo_existente = cursor.fetchone()
 
+        # Preguntar al usuario si está seguro de eliminar el artículo
+        respuesta = messagebox.askyesno("Confirmar Eliminación", "¿Está seguro de que desea eliminar este artículo?")
+    
+        if not respuesta:  # Si el usuario elige "No", salimos de la función
+            return
+
         if articulo_existente:
             # Si el artículo existe, eliminarlo de la base de datos
             cursor.execute("DELETE FROM stock WHERE id = %s", (entry_id.get(),))
             conexion.commit()  # Confirmar la eliminación
             messagebox.showinfo("Información", "Artículo eliminado correctamente")
+            # Limpiar los campos después de agregar
+            entry_cantidad.delete(0, END)
+            entry_precio_costo.delete(0, END)
+            entry_precio_final.delete(0, END)
+            entry_detalle.delete(0, END)
+            
+            # Llamar a obtener_codigo_nuevo() si es necesario (esto depende de tu implementación)
+            obtener_id_nuevo()  # Puedes ajustar esta llamada si necesitas mostrar el nuevo ID
         else:
             # Si el artículo no existe, mostrar un mensaje de error
             messagebox.showerror("Error", "Artículo no encontrado")
@@ -509,7 +532,7 @@ def limpiar_campos():
 
     # Obtener el nuevo ID máximo
     obtener_id_nuevo()  # Llama a la función que actualiza el ID
-    
+
 boton_limpiar = Button(frame_stock, text="Limpiar", command=limpiar_campos, bg="spring green", fg="black")
 boton_limpiar.pack(side=LEFT, padx=20, pady=(21, 0))
 
