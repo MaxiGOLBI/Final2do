@@ -167,9 +167,6 @@ label_buscador.pack(anchor=W, padx=20, pady=(21, 0))
 entry_buscador = Entry(frame_stock, font=("Impact", 13), width=23, fg="snow", bg="gray0")
 entry_buscador.pack(anchor=W, padx=20, pady=(21, 0))
 
-# Inicialización de `articulos` como una lista vacía
-articulos = []
-
 #id
 label_id = Label(frame_stock, text="ID:", font=("Impact", 13), fg="spring green", bg="gray0")
 label_id.pack(anchor=W, padx=20, pady=(21, 0))
@@ -279,7 +276,7 @@ articulos = []
 def ver_stock():
     ventana_stock = Toplevel()
     ventana_stock.title("Stock disponible")
-    listbox = Listbox(ventana_stock, width=600, height=400)
+    listbox = Listbox(ventana_stock, width=100, height=40)
     listbox.pack(pady=10)
     try:
         # Conectar a la base de datos MySQL
