@@ -371,23 +371,52 @@ boton_agregar = Button(frame_stock, text="Agregar", command=agregar_articulo, bg
 boton_agregar.pack(side=LEFT, padx=20, pady=(21, 0))
 
 def actualizar_articulo():
-    id = entry_id.get()
+    id_articulo = entry_id.get()
     cantidad = entry_cantidad.get()
     precio_costo = entry_precio_costo.get()
     precio_final = entry_precio_final.get()
     detalle = entry_detalle.get()
-    if not id or not cantidad or not precio_costo or not precio_final or not detalle:
+
+    # Verificar si todos los campos están llenos
+    if not id_articulo or not cantidad or not precio_costo or not precio_final or not detalle:
         messagebox.showerror("Error", "Todos los campos son obligatorios")
         return
-    for item in articulos:
-        if item['id'] == id:
-            item['cantidad'] = cantidad
-            item['costo'] = precio_costo
-            item['final'] = precio_final
-            item['detalle'] = detalle
-            messagebox.showinfo("Informacion", "Articulo actualizado correctamente")
-            return
-    messagebox.showerror("Error", "Articulo no encontrado")
+
+    try:
+        # Conectar a la base de datos MySQL
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="bdfinal2"
+        )
+        cursor = conexion.cursor()
+
+        # Verificar si el artículo con el ID especificado existe en la base de datos
+        cursor.execute("SELECT * FROM stock WHERE id = %s", (id_articulo,))
+        articulo_existente = cursor.fetchone()
+
+        if articulo_existente:
+            # Si el artículo existe, actualizar sus valores en la base de datos
+            cursor.execute("""
+                UPDATE stock SET cantidad = %s, precio_costo = %s, precio_final = %s, detalle = %s WHERE id = %s
+            """, (cantidad, precio_costo, precio_final, detalle, id_articulo))
+            conexion.commit()
+            messagebox.showinfo("Información", "Artículo actualizado correctamente")
+        else:
+            # Si el artículo no existe, mostrar un mensaje de error
+            messagebox.showerror("Error", "Artículo no encontrado")
+
+    except mysql.connector.Error as err:
+        # Muestra el error específico de MySQL
+        messagebox.showerror("Error de MySQL", f"Se produjo un error: {err}")
+    finally:
+        # Cerrar el cursor y la conexión a la base de datos
+        if cursor:
+            cursor.close()
+        if conexion and conexion.is_connected():
+            conexion.close()
+            
 boton_actualizar = Button(frame_stock, text="Actualizar", command=actualizar_articulo, bg="spring green", fg="black")
 boton_actualizar.pack(side=LEFT, padx=20, pady=(21, 0))
 
