@@ -922,7 +922,7 @@ def guardar_proveedor(id, nombre, fecha, detalle, ventana_agregar):
             conexion.close()  
 
 # Ventana de ventas
-
+sigo aca
 # Ventana de carrito
 
 # Ventana de tickets
