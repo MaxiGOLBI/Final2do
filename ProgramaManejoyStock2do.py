@@ -1114,7 +1114,7 @@ def guardar_venta(id, toe, fecha, detalle, cantidad, total, ventana_agregar):
             cursor.close()
         if conexion and conexion.is_connected():
             conexion.close()
-# Ventana de carrito
+# Ventana de carrito seguir
 
 # Ventana de tickets
 
