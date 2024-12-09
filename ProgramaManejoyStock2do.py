@@ -865,7 +865,7 @@ def abrir_ventana_agregar2():
     entry_fecha.delete(0,END)
     #obtener fecha y hora actual
     ahora = datetime.now()
-    fecha = ahora.strftime("%d/%m/%Y")
+    fecha = ahora.strftime("%d/%m/%Y %H:%M:%S")
     entry_fecha.insert(END,fecha)
     entry_fecha.config(state="readonly")
 
@@ -922,7 +922,6 @@ def guardar_cliente(id, nombre, fecha, detalle, ventana_agregar):
             conexion.close()  
 
 # Ventana de ventas
-# Función para mostrar los proveedores en el Treeview dentro de frame_ventas
 def ver_ventas():
     # Limpiar cualquier widget anterior en el frame_ventas
     for widget in frame_ventas.winfo_children():
@@ -930,8 +929,8 @@ def ver_ventas():
 
     # Crear el Treeview dentro de frame_ventas
     global tree  # Definir tree como global para que sea accesible en otras funciones
-    tree = ttk.Treeview(frame_ventas, columns=("ID","tof", "Fecha", "detalle o ST", "cantidad", "total"), show="headings", height=15)
-    
+    tree = ttk.Treeview(frame_ventas, columns=("ID", "tof", "Fecha", "detalle o ST", "cantidad", "total"), show="headings", height=15)
+
     # Configurar el estilo de la tabla
     style = ttk.Style()
     style.configure("Treeview.Heading", font=("Arial", 12, "bold"))
@@ -941,9 +940,9 @@ def ver_ventas():
     tree.heading("ID", text="ID")
     tree.heading("tof", text="Tarjeta o Efectivo")
     tree.heading("Fecha", text="Fecha")
-    tree.heading("detalle o ST", text="detalle o ST")
-    tree.heading("cantidad", text="cantidad")
-    tree.heading("total", text="total")
+    tree.heading("detalle o ST", text="Detalle o ST")
+    tree.heading("cantidad", text="Cantidad")
+    tree.heading("total", text="Total")
     # Ajustar el ancho de las columnas
     tree.column("ID", width=50)
     tree.column("tof", width=150)
@@ -1014,31 +1013,38 @@ def abrir_ventana_agregar3():
     # Crear la ventana emergente
     ventana_agregar = tk.Toplevel()
     ventana_agregar.title("Agregar Ventas")
-    # Etiquetas y campos de entrada para cada campo de proveedor
+
     def obtener_id_nuevo4():
-        conexion = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="",
-            database="bdfinal2"
-        )
-        cursor = conexion.cursor()
+        try:
+            conexion = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="bdfinal2"
+            )
+            cursor = conexion.cursor()
 
-        # Obtener el código más alto actual
-        cursor.execute("SELECT MAX(id) FROM ventas")
-        max_codigo4 = cursor.fetchone()[0]
+            # Obtener el código más alto actual
+            cursor.execute("SELECT MAX(id) FROM ventas")
+            max_codigo4 = cursor.fetchone()[0]
 
-        # Asignar el nuevo código (siguiente disponible)
-        nuevo_codigo4 = int(max_codigo4) + 1 if max_codigo4 is not None else 1
-        return nuevo_codigo4
-    
-    
+            # Asignar el nuevo código (siguiente disponible)
+            return int(max_codigo4) + 1 if max_codigo4 is not None else 1
+        except Exception as e:
+            messagebox.showerror("Error", f"Se produjo un error al obtener el ID: {str(e)}")
+            return 1
+        finally:
+            if cursor:
+                cursor.close()
+            if conexion and conexion.is_connected():
+                conexion.close()
+
+    # Campos del formulario
     tk.Label(ventana_agregar, text="ID:").grid(row=0, column=0, padx=10, pady=5)
     entry_id = tk.Entry(ventana_agregar)
     entry_id.grid(row=0, column=1, padx=10, pady=5)
-    entry_id.delete(0,END)
-    max_id_venta=obtener_id_nuevo4()
-    entry_id.insert(END,max_id_venta)
+    entry_id.delete(0, tk.END)
+    entry_id.insert(tk.END, obtener_id_nuevo4())
     entry_id.config(state="readonly")
 
     tk.Label(ventana_agregar, text="toe:").grid(row=1, column=0, padx=10, pady=5)
@@ -1048,24 +1054,20 @@ def abrir_ventana_agregar3():
     tk.Label(ventana_agregar, text="Fecha:").grid(row=2, column=0, padx=10, pady=5)
     entry_fecha = tk.Entry(ventana_agregar)
     entry_fecha.grid(row=2, column=1, padx=10, pady=5)
-    entry_fecha.delete(0,END)
-    #obtener fecha y hora actual
     ahora = datetime.now()
-    fecha = ahora.strftime("%d/%m/%Y")
-    entry_fecha.insert(END,fecha)
-    entry_fecha.config(state="readonly")
-
+    fecha = ahora.strftime("%Y-%m-%d %H:%M:%S")
+    entry_fecha.insert(tk.END, fecha)
     entry_fecha.config(state="readonly")
 
     tk.Label(ventana_agregar, text="Detalle o ST:").grid(row=3, column=0, padx=10, pady=5)
     entry_detalle = tk.Entry(ventana_agregar)
     entry_detalle.grid(row=3, column=1, padx=10, pady=5)
 
-    tk.Label(ventana_agregar, text="cantidad:").grid(row=4, column=0, padx=10, pady=5)
+    tk.Label(ventana_agregar, text="Cantidad:").grid(row=4, column=0, padx=10, pady=5)
     entry_cantidad = tk.Entry(ventana_agregar)
     entry_cantidad.grid(row=4, column=1, padx=10, pady=5)
 
-    tk.Label(ventana_agregar, text="total:").grid(row=5, column=0, padx=10, pady=5)
+    tk.Label(ventana_agregar, text="Total:").grid(row=5, column=0, padx=10, pady=5)
     entry_total = tk.Entry(ventana_agregar)
     entry_total.grid(row=5, column=1, padx=10, pady=5)
 
@@ -1077,15 +1079,12 @@ def abrir_ventana_agregar3():
     )
     btn_guardar.grid(row=6, column=0, columnspan=2, pady=10)
 
-# Función para guardar un nuevo venta en la base de datos
 def guardar_venta(id, toe, fecha, detalle, cantidad, total, ventana_agregar):
-    # Validación básica
-    if not id or not cantidad or not total or not detalle:
-        messagebox.showwarning("Advertencia", "Por favor, complete todos los campos.")
+    if not id or not toe or not fecha or not detalle or not cantidad.isdigit() or not total.isdigit():
+        messagebox.showwarning("Advertencia", "Por favor, complete todos los campos correctamente.")
         return
 
     try:
-        # Conectar a la base de datos MySQL
         conexion = mysql.connector.connect(
             host="localhost",
             user="root",
@@ -1095,25 +1094,23 @@ def guardar_venta(id, toe, fecha, detalle, cantidad, total, ventana_agregar):
         cursor = conexion.cursor()
 
         # Insertar la nueva venta en la tabla 'ventas'
-        cursor.execute("INSERT INTO ventas (id, toe, Fecha, detalle o ST, cantidad, total) VALUES (%s, %s, %s, %s, %s, %s)", (id, toe, fecha, detalle, cantidad, total))
+        cursor.execute("INSERT INTO ventas (id, toe, Fecha, `detalle o ST`, cantidad, total) VALUES (%s, %s, %s, %s, %s, %s)", 
+                       (id, toe, fecha, detalle, cantidad, total))
         conexion.commit()
-
-        messagebox.showinfo("Éxito", "  venta agregada exitosamente.")
-        ventana_agregar.destroy()  # Cerrar la ventana de agregar
-
-        # Actualizar la lista de proveedores después de agregar uno nuevo
-        ver_ventas()  # Asegúrate de que esta función esté definida para actualizar la tabla
+        messagebox.showinfo("Éxito", "Venta agregada exitosamente.")
+        ventana_agregar.destroy()
+        ver_ventas()
 
     except mysql.connector.Error as err:
         messagebox.showerror("Error de MySQL", f"Se produjo un error: {err}")
     except Exception as e:
         messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
     finally:
-        # Cerrar el cursor y la conexión a la base de datos
         if cursor:
             cursor.close()
         if conexion and conexion.is_connected():
             conexion.close()
+
 # Ventana de carrito seguir
 
 # Ventana de tickets
