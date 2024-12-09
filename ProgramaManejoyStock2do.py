@@ -114,7 +114,7 @@ def verStock():
 def verVentas():
     sacarFrames()
     frame_ventas.pack(fill=BOTH, expand=True)
-
+    ver_ventas()
 def verProveedores():
     sacarFrames()
     frame_proveedores.pack(fill=BOTH, expand=True)
@@ -851,8 +851,8 @@ def abrir_ventana_agregar2():
     entry_id = tk.Entry(ventana_agregar)
     entry_id.grid(row=0, column=1, padx=10, pady=5)
     entry_id.delete(0,END)
-    max_id_proveedor=obtener_id_nuevo3()
-    entry_id.insert(END,max_id_proveedor)
+    max_id_cliente=obtener_id_nuevo3()
+    entry_id.insert(END,max_id_cliente)
     entry_id.config(state="readonly")
 
     tk.Label(ventana_agregar, text="Nombre:").grid(row=1, column=0, padx=10, pady=5)
@@ -879,12 +879,12 @@ def abrir_ventana_agregar2():
     btn_guardar = tk.Button(
         ventana_agregar,
         text="Guardar",
-        command=lambda: guardar_proveedor(entry_id.get(), entry_nombre.get(), entry_fecha.get(), entry_detalle.get(), ventana_agregar)
+        command=lambda: guardar_cliente(entry_id.get(), entry_nombre.get(), entry_fecha.get(), entry_detalle.get(), ventana_agregar)
     )
     btn_guardar.grid(row=4, column=0, columnspan=2, pady=10)
 
 # Función para guardar un nuevo proveedor en la base de datos
-def guardar_proveedor(id, nombre, fecha, detalle, ventana_agregar):
+def guardar_cliente(id, nombre, fecha, detalle, ventana_agregar):
     # Validación básica
     if not id or not nombre or not fecha or not detalle:
         messagebox.showwarning("Advertencia", "Por favor, complete todos los campos.")
@@ -922,7 +922,198 @@ def guardar_proveedor(id, nombre, fecha, detalle, ventana_agregar):
             conexion.close()  
 
 # Ventana de ventas
-sigo aca
+# Función para mostrar los proveedores en el Treeview dentro de frame_ventas
+def ver_ventas():
+    # Limpiar cualquier widget anterior en el frame_ventas
+    for widget in frame_ventas.winfo_children():
+        widget.destroy()
+
+    # Crear el Treeview dentro de frame_ventas
+    global tree  # Definir tree como global para que sea accesible en otras funciones
+    tree = ttk.Treeview(frame_ventas, columns=("ID","tof", "Fecha", "detalle o ST", "cantidad", "total"), show="headings", height=15)
+    
+    # Configurar el estilo de la tabla
+    style = ttk.Style()
+    style.configure("Treeview.Heading", font=("Arial", 12, "bold"))
+    style.configure("Treeview", font=("Arial", 10))
+
+    # Definir encabezados de columna
+    tree.heading("ID", text="ID")
+    tree.heading("tof", text="Tarjeta o Efectivo")
+    tree.heading("Fecha", text="Fecha")
+    tree.heading("detalle o ST", text="detalle o ST")
+    tree.heading("cantidad", text="cantidad")
+    tree.heading("total", text="total")
+    # Ajustar el ancho de las columnas
+    tree.column("ID", width=50)
+    tree.column("tof", width=150)
+    tree.column("Fecha", width=100)
+    tree.column("detalle o ST", width=200)
+    tree.column("cantidad", width=100)
+    tree.column("total", width=100)
+
+    # Crear las barras de desplazamiento dentro de frame_ventas
+    scrollbar_y = ttk.Scrollbar(frame_ventas, orient="vertical", command=tree.yview)
+    scrollbar_x = ttk.Scrollbar(frame_ventas, orient="horizontal", command=tree.xview)
+
+    # Asignar las barras de desplazamiento al Treeview
+    tree.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+
+    # Colocar el Treeview y las barras de desplazamiento en el Grid
+    tree.grid(row=0, column=0, sticky="nsew")
+    scrollbar_y.grid(row=0, column=1, sticky="ns")
+    scrollbar_x.grid(row=1, column=0, sticky="ew")
+
+    # Crear un botón para agregar un nuevo proveedor, debajo de la tabla
+    btn_agregar2 = tk.Button(frame_ventas, text="Agregar venta", command=abrir_ventana_agregar3)
+    btn_agregar2.grid(row=2, column=0, pady=10, sticky="ew")  # Ubicar el botón debajo de la tabla
+
+    # Asegurar que el frame_clientes expanda el Treeview al redimensionarse
+    frame_ventas.grid_rowconfigure(0, weight=1)
+    frame_ventas.grid_columnconfigure(0, weight=1)
+
+    try:
+        # Conectar a la base de datos MySQL
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="bdfinal2"
+        )
+        cursor = conexion.cursor()
+
+        # Verificar que la tabla 'ventas' existe
+        cursor.execute("SHOW TABLES LIKE 'ventas'")
+        if cursor.fetchone() is None:
+            messagebox.showerror("Error", "La tabla 'ventas' no existe en la base de datos.")
+            return
+
+        # Realizar la consulta para obtener todos los ventas
+        cursor.execute("SELECT * FROM ventas")
+        ventas = cursor.fetchall()
+
+        # Insertar las ventas en el Treeview
+        if ventas:
+            for venta in ventas:
+                tree.insert("", tk.END, values=(venta[0], venta[1], venta[2], venta[3], venta[4], venta[5]))
+        else:
+            messagebox.showinfo("Información", "No hay Ventas.")
+
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error de MySQL", f"Se produjo un error: {err}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
+    finally:
+        # Cerrar el cursor y la conexión a la base de datos
+        if cursor:
+            cursor.close()
+        if conexion and conexion.is_connected():
+            conexion.close()
+
+def abrir_ventana_agregar3():
+    # Crear la ventana emergente
+    ventana_agregar = tk.Toplevel()
+    ventana_agregar.title("Agregar Ventas")
+    # Etiquetas y campos de entrada para cada campo de proveedor
+    def obtener_id_nuevo4():
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="bdfinal2"
+        )
+        cursor = conexion.cursor()
+
+        # Obtener el código más alto actual
+        cursor.execute("SELECT MAX(id) FROM ventas")
+        max_codigo4 = cursor.fetchone()[0]
+
+        # Asignar el nuevo código (siguiente disponible)
+        nuevo_codigo4 = int(max_codigo4) + 1 if max_codigo4 is not None else 1
+        return nuevo_codigo4
+    
+    
+    tk.Label(ventana_agregar, text="ID:").grid(row=0, column=0, padx=10, pady=5)
+    entry_id = tk.Entry(ventana_agregar)
+    entry_id.grid(row=0, column=1, padx=10, pady=5)
+    entry_id.delete(0,END)
+    max_id_venta=obtener_id_nuevo4()
+    entry_id.insert(END,max_id_venta)
+    entry_id.config(state="readonly")
+
+    tk.Label(ventana_agregar, text="toe:").grid(row=1, column=0, padx=10, pady=5)
+    entry_toe = tk.Entry(ventana_agregar)
+    entry_toe.grid(row=1, column=1, padx=10, pady=5)
+
+    tk.Label(ventana_agregar, text="Fecha:").grid(row=2, column=0, padx=10, pady=5)
+    entry_fecha = tk.Entry(ventana_agregar)
+    entry_fecha.grid(row=2, column=1, padx=10, pady=5)
+    entry_fecha.delete(0,END)
+    #obtener fecha y hora actual
+    ahora = datetime.now()
+    fecha = ahora.strftime("%d/%m/%Y")
+    entry_fecha.insert(END,fecha)
+    entry_fecha.config(state="readonly")
+
+    entry_fecha.config(state="readonly")
+
+    tk.Label(ventana_agregar, text="Detalle o ST:").grid(row=3, column=0, padx=10, pady=5)
+    entry_detalle = tk.Entry(ventana_agregar)
+    entry_detalle.grid(row=3, column=1, padx=10, pady=5)
+
+    tk.Label(ventana_agregar, text="cantidad:").grid(row=4, column=0, padx=10, pady=5)
+    entry_cantidad = tk.Entry(ventana_agregar)
+    entry_cantidad.grid(row=4, column=1, padx=10, pady=5)
+
+    tk.Label(ventana_agregar, text="total:").grid(row=5, column=0, padx=10, pady=5)
+    entry_total = tk.Entry(ventana_agregar)
+    entry_total.grid(row=5, column=1, padx=10, pady=5)
+
+    # Botón para guardar venta
+    btn_guardar = tk.Button(
+        ventana_agregar,
+        text="Guardar",
+        command=lambda: guardar_venta(entry_id.get(), entry_toe.get(), entry_fecha.get(), entry_detalle.get(), entry_cantidad.get(), entry_total.get(), ventana_agregar)
+    )
+    btn_guardar.grid(row=6, column=0, columnspan=2, pady=10)
+
+# Función para guardar un nuevo venta en la base de datos
+def guardar_venta(id, toe, fecha, detalle, cantidad, total, ventana_agregar):
+    # Validación básica
+    if not id or not cantidad or not total or not detalle:
+        messagebox.showwarning("Advertencia", "Por favor, complete todos los campos.")
+        return
+
+    try:
+        # Conectar a la base de datos MySQL
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="bdfinal2"
+        )
+        cursor = conexion.cursor()
+
+        # Insertar la nueva venta en la tabla 'ventas'
+        cursor.execute("INSERT INTO ventas (id, toe, Fecha, detalle o ST, cantidad, total) VALUES (%s, %s, %s, %s, %s, %s)", (id, toe, fecha, detalle, cantidad, total))
+        conexion.commit()
+
+        messagebox.showinfo("Éxito", "  venta agregada exitosamente.")
+        ventana_agregar.destroy()  # Cerrar la ventana de agregar
+
+        # Actualizar la lista de proveedores después de agregar uno nuevo
+        ver_ventas()  # Asegúrate de que esta función esté definida para actualizar la tabla
+
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error de MySQL", f"Se produjo un error: {err}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
+    finally:
+        # Cerrar el cursor y la conexión a la base de datos
+        if cursor:
+            cursor.close()
+        if conexion and conexion.is_connected():
+            conexion.close()
 # Ventana de carrito
 
 # Ventana de tickets
