@@ -74,8 +74,9 @@ except Exception as e:
     messagebox.showwarning("Advertencia", f"No se encontró el ícono: {e}")
 
 def sacarFrames():
-    for frame in [frame_inicio, frame_stock, frame_ventas, frame_proveedores, frame_clientes]:
-        frame.pack_forget()
+    for frame in [frame_inicio, frame_stock, frame_ventas, frame_proveedores, frame_clientes, frame_carrito, frame_botones]:
+        if frame.winfo_exists():
+            frame.pack_forget()
 
 # Frames
 frame_inicio = Frame(ventana, bg="gray0")
@@ -84,8 +85,6 @@ frame_ventas = Frame(ventana, bg="gray0")
 frame_proveedores = Frame(ventana, bg="gray0")
 frame_clientes = Frame(ventana, bg="gray0")
 frame_carrito = Frame(ventana, bg="gray0")
-frame_tickets = Frame(ventana, bg="gray0")
-
 # Frame de botones
 frame_botones = Frame(ventana, bg="spring green")
 frame_botones.pack(side=TOP, fill=X)
@@ -127,10 +126,7 @@ def verClientes():
 def verCarrito():
     sacarFrames()
     frame_carrito.pack(fill=BOTH, expand=True)
-
-def vertickets():
-    sacarFrames()
-    frame_tickets.pack(fill=BOTH, expand=True)
+    ver_carrito()
 
 # Función para cerrar la aplicación
 def cerrar():
@@ -155,11 +151,8 @@ botonProveedores.pack(side=LEFT, padx=5, pady=5)
 botonClientes = Button(frame_botones_interno, text="Clientes", command=verClientes, bg="spring green", fg="black")
 botonClientes.pack(side=LEFT, padx=5, pady=5)
 
-botonCarrito = Button(frame_botones_interno, text="Carrito  ", command=verVentas, bg="spring green", fg="black")
+botonCarrito = Button(frame_botones_interno, text="Carrito  ", command=verCarrito, bg="spring green", fg="black")
 botonCarrito.pack(side=LEFT, padx=5, pady=5)
-
-botonTickets = Button(frame_botones_interno, text="Tickets", command=vertickets, bg="spring green", fg="black")
-botonTickets.pack(side=LEFT, padx=5, pady=5)
 
 # Ventana de stock
 label_buscador =  Label(frame_stock, text="Busca un Articulo:", font=("Impact", 13), fg="spring green", bg="gray0")
@@ -1111,12 +1104,185 @@ def guardar_venta(id, toe, fecha, detalle, cantidad, total, ventana_agregar):
         if conexion and conexion.is_connected():
             conexion.close()
 
-# Ventana de carrito seguir
+# carrito y ticket
 
-# Ventana de tickets
+def ver_carrito():
+    sacarFrames()
+    import tkinter as tk
+from tkinter import messagebox
+from tkinter import Toplevel
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+import os
+import time
+import mysql.connector
+
+class App:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Carrito de Compras")
+
+        # Lista de productos disponibles
+        self.productos = []
+        self.carrito = []
+
+        # Frame principal
+        main_frame = tk.Frame(root)
+        main_frame.pack(pady=10, padx=10)
+
+        # Frame para la lista de productos
+        productos_frame = tk.Frame(main_frame)
+        productos_frame.pack(side=tk.LEFT, padx=10)
+
+        tk.Label(productos_frame, text="Productos Disponibles").pack()
+
+        self.productos_listbox = tk.Listbox(productos_frame, height=10, selectmode=tk.SINGLE)
+        self.productos_listbox.pack()
+
+        agregar_btn = tk.Button(productos_frame, text="Agregar al Carrito", command=self.agregar_al_carrito)
+        agregar_btn.pack(pady=5)
+
+        cargar_btn = tk.Button(productos_frame, text="Cargar Productos", command=self.cargar_productos)
+        cargar_btn.pack(pady=5)
+
+        # Frame para el carrito
+        carrito_frame = tk.Frame(main_frame)
+        carrito_frame.pack(side=tk.RIGHT, padx=10)
+
+        tk.Label(carrito_frame, text="Carrito").pack()
+
+        self.carrito_listbox = tk.Listbox(carrito_frame, height=10)
+        self.carrito_listbox.pack()
+
+        eliminar_btn = tk.Button(carrito_frame, text="Eliminar del Carrito", command=self.eliminar_del_carrito)
+        eliminar_btn.pack(pady=5)
+
+        vaciar_btn = tk.Button(carrito_frame, text="Vaciar Carrito", command=self.vaciar_carrito)
+        vaciar_btn.pack(pady=5)
+
+        ticket_btn = tk.Button(carrito_frame, text="Generar Ticket", command=self.crear_ticket)
+        ticket_btn.pack(pady=5)
+
+    def cargar_productos(self):
+        self.productos_listbox.delete(0, tk.END)
+        articulos = self.obtener_articulos()
+        self.productos = []
+
+        for articulo in articulos:
+            ID, cantidad, precio_final, detalle = articulo
+            self.productos.append({"ID": ID, "cantidad": cantidad, "precio": precio_final, "detalle": detalle})
+            self.productos_listbox.insert(tk.END, f"{detalle} - ${precio_final:.2f}")
+
+    def agregar_al_carrito(self):
+        seleccion = self.productos_listbox.curselection()
+        if seleccion:
+            producto = self.productos[seleccion[0]]
+            self.carrito.append({
+                "ID": producto["ID"],
+                "detalle": producto["detalle"],
+                "cantidad": 1,
+                "precio": producto["precio"],
+                "subtotal": producto["precio"]
+            })
+            self.carrito_listbox.insert(tk.END, f"{producto['detalle']} - $ {producto['precio']:.2f}")
+        else:
+            messagebox.showwarning("Atención", "Por favor, selecciona un producto para agregar.")
+
+    def eliminar_del_carrito(self):
+        seleccion = self.carrito_listbox.curselection()
+        if seleccion:
+            self.carrito.pop(seleccion[0])
+            self.carrito_listbox.delete(seleccion)
+        else:
+            messagebox.showwarning("Atención", "Por favor, selecciona un producto para eliminar.")
+
+    def vaciar_carrito(self):
+        self.carrito.clear()
+        self.carrito_listbox.delete(0, tk.END)
+
+    def crear_ticket(self):
+        if not self.carrito:
+            messagebox.showinfo("Carrito Vacío", "El carrito está vacío. No se puede generar un ticket.")
+            return
+
+        horaActual = time.strftime("%H%M%S")
+        fechaActual = time.strftime("%d%m%Y")
+        fechaHoy = time.strftime("%d/%m/%Y")
+        nombreArchivo = f"ticket_{fechaActual}_{horaActual}.pdf"
+
+        nuevoPdf = canvas.Canvas(nombreArchivo, pagesize=A4)
+
+        # Líneas horizontales (X)
+        nuevoPdf.line(20, 820, 570, 820)  # Línea superior
+        nuevoPdf.line(20, 20, 570, 20)    # Línea inferior
+        nuevoPdf.line(20, 720, 570, 720)  # Línea de encabezado
+
+        # Líneas verticales (Y)
+        nuevoPdf.line(20, 20, 20, 820)    # Borde izquierdo
+        nuevoPdf.line(570, 20, 570, 820)  # Borde derecho
+        nuevoPdf.line(480, 720, 480, 820) # Separador entre título y fecha
+
+        # Texto de encabezado
+        nuevoPdf.setFont("Times-Roman", 20)
+        nuevoPdf.drawString(50, 780, "Ticket de Compra")
+        nuevoPdf.setFont("Times-Roman", 12)
+        nuevoPdf.drawString(490, 780, fechaHoy)  # Fecha actual en la esquina superior derecha
+
+        # Encabezados de la tabla de productos
+        nuevoPdf.drawString(50, 700, "Artículo")
+        nuevoPdf.drawString(300, 700, "Cantidad")
+        nuevoPdf.drawString(400, 700, "Precio")
+        nuevoPdf.drawString(500, 700, "Subtotal")
+
+        # Variables para controlar la posición vertical en la tabla y el total
+        y_position = 680
+        total = sum(item['subtotal'] for item in self.carrito)
+
+        # Agregar artículos del carrito al ticket
+        for item in self.carrito:
+            nuevoPdf.drawString(50, y_position, f"{item['ID']} - {item['detalle']}")
+            nuevoPdf.drawString(300, y_position, str(item['cantidad']))
+            nuevoPdf.drawString(400, y_position, f"${item['precio']:.2f}")
+            nuevoPdf.drawString(500, y_position, f"${item['subtotal']:.2f}")
+            y_position -= 20  # Mover la posición hacia abajo para la siguiente fila
+
+        # Mostrar el total
+        nuevoPdf.drawString(400, y_position - 20, "Total:")
+        nuevoPdf.drawString(500, y_position - 20, f"${total:.2f}")
+
+        # Guardar el PDF
+        nuevoPdf.save()
+        messagebox.showinfo("Ticket Generado", f"Ticket guardado como {nombreArchivo}")
+
+        # Limpiar el carrito
+        self.vaciar_carrito()
+
+    def obtener_articulos(self):
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="bdfinal2"
+        )
+        try:
+            cursor = conexion.cursor()
+            cursor.execute("SELECT ID, cantidad, precio_final, detalle FROM stock")
+            articulos = cursor.fetchall()
+            cursor.close()
+            return articulos
+        except mysql.connector.Error as err:
+            messagebox.showerror("Error de base de datos", f"No se pudieron obtener los artículos: {err}")
+            return []
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = App(root)
+    root.mainloop()
+
 
 # Mostrar el frame de inicio al iniciar la aplicación
-verInicio()
+    verInicio()
+
 # Iniciar ventana
 
 ventana.mainloop()
